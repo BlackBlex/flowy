@@ -10,28 +10,13 @@
  * @returns {void}
  */
 const flowy = function (canvas, grab, release, snapping, rearrange, spacing_x, spacing_y) {
-  if (!grab) {
-    grab = function () {}
-  }
-  if (!release) {
-    release = function () {}
-  }
-  if (!snapping) {
-    snapping = function () {
-      return true
-    }
-  }
-  if (!rearrange) {
-    rearrange = function () {
-      return false
-    }
-  }
-  if (!spacing_x) {
-    spacing_x = 20
-  }
-  if (!spacing_y) {
-    spacing_y = 80
-  }
+  grab = grab || function () {}
+  release = release || function () {}
+  snapping = snapping || function () { return true }
+  rearrange = rearrange || function () { return false }
+  spacing_x = !spacing_x ? 20 : spacing_x
+  spacing_y = !spacing_y ? 80 : spacing_y
+
   if (!Element.prototype.matches) {
     Element.prototype.matches = Element.prototype.msMatchesSelector ||
             Element.prototype.webkitMatchesSelector
@@ -74,6 +59,7 @@ const flowy = function (canvas, grab, release, snapping, rearrange, spacing_x, s
     let rearrange = false
     let drag, dragx, dragy, original
     let mouse_x, mouse_y
+    let begin_mouse_x, begin_mouse_y
     let dragblock = false
     let prevblock = 0
     const el = document.createElement('DIV')
@@ -151,6 +137,61 @@ const flowy = function (canvas, grab, release, snapping, rearrange, spacing_x, s
       canvas_div.innerHTML = "<div class='indicator invisible'></div>"
     }
 
+    flowy.deleteBlock = function (id) {
+      let newParentId
+
+      if (!Number.isInteger(id)) {
+        id = parseInt(id)
+      }
+
+      for (let i = 0; i < blocks.length; i++) {
+        if (blocks[i].id === id) {
+          newParentId = blocks[i].parent
+          canvas_div.appendChild(document.querySelector('.indicator'))
+          removeBlockEls(blocks[i].id)
+          blocks.splice(i, 1)
+          modifyChildBlocks(id)
+          break
+        }
+      }
+
+      if (blocks.length > 1) {
+        rearrangeMe()
+      }
+
+      return Math.max.apply(
+        Math,
+        blocks.map((a) => a.id)
+      )
+
+      function modifyChildBlocks (parentId) {
+        const children = []
+        const blocko = blocks.map((a) => a.id)
+        for (var i = blocko.length - 1; i >= 0; i--) {
+          const currentBlock = blocks.filter((a) => a.id == blocko[i])[0]
+          if (currentBlock.parent === parentId) {
+            children.push(currentBlock.id)
+            removeBlockEls(currentBlock.id)
+            blocks.splice(i, 1)
+          }
+        }
+
+        for (var i = 0; i < children.length; i++) {
+          modifyChildBlocks(children[i])
+        }
+      }
+      function removeBlockEls (id) {
+        document
+          .querySelector(".blockid[value='" + id + "']")
+          .parentNode.remove()
+        if (document.querySelector(".arrowid[value='" + id + "']")) {
+          document
+            .querySelector(".arrowid[value='" + id + "']")
+            .parentNode.remove()
+        }
+      }
+    }
+
     /**
      * Handles user drag start events
      * @param {MouseEvent|TouchEvent} event - Drag start event
@@ -168,6 +209,9 @@ const flowy = function (canvas, grab, release, snapping, rearrange, spacing_x, s
         mouse_x = event.clientX
         mouse_y = event.clientY
       }
+      begin_mouse_x = mouse_x
+      begin_mouse_y = mouse_y
+
       if (event.which != 3 && event.target.closest('.create-flowy')) {
         original = event.target.closest('.create-flowy')
         const newNode = event.target.closest('.create-flowy').cloneNode(true)
@@ -199,6 +243,23 @@ const flowy = function (canvas, grab, release, snapping, rearrange, spacing_x, s
      * @returns {void}
      */
     flowy.endDrag = function (event) {
+      const diffx = mouse_x - begin_mouse_x
+      const diffy = mouse_y - begin_mouse_y
+
+      if (
+        Math.abs(diffx) < 50 &&
+                Math.abs(diffy) < 50 &&
+                rearrange &&
+                parseInt(drag.querySelector('.blockid').value) !== 0
+      ) {
+        var blocko = blocks.map((a) => a.id)
+        active = false
+        drag.classList.remove('dragging')
+        snap(drag, blocko.indexOf(prevblock), blocko)
+        document.querySelector('.indicator').classList.add('invisible')
+        return
+      }
+
       if (event.which != 3 && (active || rearrange)) {
         dragblock = false
         blockReleased()
@@ -267,7 +328,10 @@ const flowy = function (canvas, grab, release, snapping, rearrange, spacing_x, s
     function checkAttach (id) {
       const xpos = (drag.getBoundingClientRect().left + window.scrollX) + (parseInt(window.getComputedStyle(drag).width) / 2) + canvas_div.scrollLeft - canvas_div.getBoundingClientRect().left
       const ypos = (drag.getBoundingClientRect().top + window.scrollY) + canvas_div.scrollTop - canvas_div.getBoundingClientRect().top
-      if (xpos >= blocks.filter(a => a.id == id)[0].x - (blocks.filter(a => a.id == id)[0].width / 2) - paddingx && xpos <= blocks.filter(a => a.id == id)[0].x + (blocks.filter(a => a.id == id)[0].width / 2) + paddingx && ypos >= blocks.filter(a => a.id == id)[0].y - (blocks.filter(a => a.id == id)[0].height / 2) && ypos <= blocks.filter(a => a.id == id)[0].y + blocks.filter(a => a.id == id)[0].height) {
+      if (xpos >= blocks.filter(a => a.id == id)[0].x - (blocks.filter(a => a.id == id)[0].width / 2) - paddingx &&
+              xpos <= blocks.filter(a => a.id == id)[0].x + (blocks.filter(a => a.id == id)[0].width / 2) + paddingx &&
+              ypos >= blocks.filter(a => a.id == id)[0].y - (3 * (blocks.filter(a => a.id == id)[0].height / 2)) &&
+              ypos <= blocks.filter(a => a.id == id)[0].y + (3 * (blocks.filter(a => a.id == id)[0].height / 2))) {
         return true
       } else {
         return false
@@ -280,7 +344,7 @@ const flowy = function (canvas, grab, release, snapping, rearrange, spacing_x, s
      */
     function removeSelection () {
       canvas_div.appendChild(document.querySelector('.indicator'))
-      drag.parentNode.removeChild(drag)
+      if (drag.parentNode !== null) { drag.parentNode.removeChild(drag) }
     }
 
     /**
@@ -290,8 +354,11 @@ const flowy = function (canvas, grab, release, snapping, rearrange, spacing_x, s
      */
     function firstBlock (type) {
       if (type == 'drop') {
-        blockSnap(drag, true, undefined)
         active = false
+        if (!blockSnap(drag, true, undefined)) {
+          removeSelection()
+          return false
+        }
         drag.style.top = (drag.getBoundingClientRect().top + window.scrollY) - (absy + window.scrollY) + canvas_div.scrollTop + 'px'
         drag.style.left = (drag.getBoundingClientRect().left + window.scrollX) - (absx + window.scrollX) + canvas_div.scrollLeft + 'px'
         canvas_div.appendChild(drag)

@@ -6,34 +6,43 @@ document.addEventListener('DOMContentLoaded', function () {
   let historyStep = -1
   function saveHistory () {
     let data = flowy.output()
+
     if (!data) {
       data = { html: document.getElementById('canvas').innerHTML, blockarr: [], blocks: [] }
     }
+
     history = history.slice(0, historyStep + 1)
-    history.push(JSON.parse(JSON.stringify(data)))
+    history.push(JSON.stringify(data))
     historyStep = history.length - 1
   }
+
   function undo () {
     if (historyStep > 0) {
       historyStep -= 1
-      flowy.import(JSON.parse(JSON.stringify(history[historyStep])))
+      flowy.import(JSON.parse(history[historyStep]))
     }
   }
+
   function redo () {
     if (historyStep < history.length - 1) {
       historyStep += 1
-      flowy.import(JSON.parse(JSON.stringify(history[historyStep])))
+      flowy.import(JSON.parse(history[historyStep]))
     }
   }
   document.getElementById('blocklist').innerHTML = '<div class="blockelem create-flowy noselect"><input type="hidden" name="blockelemtype" class="blockelemtype" value="1"><div class="grabme"><img src="assets/grabme.svg"></div><div class="blockin">                  <div class="blockico"><span></span><img src="assets/eye.svg"></div><div class="blocktext">                        <p class="blocktitle">New visitor</p><p class="blockdesc">Triggers when somebody visits a specified page</p>        </div></div></div><div class="blockelem create-flowy noselect"><input type="hidden" name="blockelemtype" class="blockelemtype" value="2"><div class="grabme"><img src="assets/grabme.svg"></div><div class="blockin">                    <div class="blockico"><span></span><img src="assets/action.svg"></div><div class="blocktext">                        <p class="blocktitle">Action is performed</p><p class="blockdesc">Triggers when somebody performs a specified action</p></div></div></div><div class="blockelem create-flowy noselect"><input type="hidden" name="blockelemtype" class="blockelemtype" value="3"><div class="grabme"><img src="assets/grabme.svg"></div><div class="blockin">                    <div class="blockico"><span></span><img src="assets/time.svg"></div><div class="blocktext">                        <p class="blocktitle">Time has passed</p><p class="blockdesc">Triggers after a specified amount of time</p>          </div></div></div><div class="blockelem create-flowy noselect"><input type="hidden" name="blockelemtype" class="blockelemtype" value="4"><div class="grabme"><img src="assets/grabme.svg"></div><div class="blockin">                    <div class="blockico"><span></span><img src="assets/error.svg"></div><div class="blocktext">                        <p class="blocktitle">Error prompt</p><p class="blockdesc">Triggers when a specified error happens</p>              </div></div></div>'
   flowy(document.getElementById('canvas'), drag, release, snapping)
-  saveHistory()
+
+  setTimeout(function () {
+    saveHistory()
+  }, 100)
+
   function addEventListenerMulti (type, listener, capture, selector) {
     const nodes = document.querySelectorAll(selector)
     for (let i = 0; i < nodes.length; i++) {
       nodes[i].addEventListener(type, listener, capture)
     }
   }
+
   function snapping (drag, first) {
     const grab = drag.querySelector('.grabme')
     grab.parentNode.removeChild(grab)
@@ -62,7 +71,9 @@ document.addEventListener('DOMContentLoaded', function () {
     } else if (drag.querySelector('.blockelemtype').value == '11') {
       drag.innerHTML += "<div class='blockyleft'><img src='assets/errorred.svg'><p class='blockyname'>Prompt an error</p></div><div class='blockyright'><img src='assets/more.svg'></div><div class='blockydiv'></div><div class='blockyinfo'>Trigger <span>Error 1</span></div>"
     }
-    saveHistory()
+    setTimeout(function () {
+      saveHistory()
+    }, 100)
     return true
   }
   function drag (block) {
@@ -74,6 +85,7 @@ document.addEventListener('DOMContentLoaded', function () {
       tempblock2.classList.remove('blockdisabled')
     }
   }
+
   const disabledClick = function () {
     document.querySelector('.navactive').classList.add('navdisabled')
     document.querySelector('.navactive').classList.remove('navactive')
@@ -101,8 +113,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('removeblock').addEventListener('click', function () {
     flowy.deleteBlocks()
-    saveHistory()
+    setTimeout(function () {
+      saveHistory()
+    }, 100)
   })
+
   let aclick = false
   let noinfo = false
   const beginTouch = function (event) {
@@ -123,6 +138,10 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('properties').classList.add('expanded')
         document.getElementById('propwrap').classList.add('itson')
         tempblock.classList.add('selectedblock')
+
+        setTimeout(function () {
+          saveHistory()
+        }, 100)
       }
     }
   }
